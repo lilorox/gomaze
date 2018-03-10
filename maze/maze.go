@@ -9,6 +9,8 @@ import (
 	"log"
 )
 
+var BuildDotGraph = false
+
 type Maze struct {
 	Start, End *Node
 	Size       image.Rectangle
@@ -29,21 +31,22 @@ func NewMaze() *Maze {
 }
 
 func (m *Maze) LoadFromImage(f io.Reader) (err error) {
-	im, format, err := image.Decode(f)
+	im, _, err := image.Decode(f)
 	if err != nil {
 		return
 	}
-	log.Printf("Image format: %s", format)
 	m.Size = im.Bounds()
 
 	width := m.Size.Max.X
 	height := m.Size.Max.Y
 	log.Printf("Width: %d, Height: %d", width, height)
 
-	// Initialize the node grid
-	m.NodeGrid = make([][]*Node, width)
-	for i := 0; i < width; i++ {
-		m.NodeGrid[i] = make([]*Node, height)
+	// Initialize the node grid for the dot graph if needed
+	if BuildDotGraph {
+		m.NodeGrid = make([][]*Node, width)
+		for i := 0; i < width; i++ {
+			m.NodeGrid[i] = make([]*Node, height)
+		}
 	}
 
 	// Maintains a list of Nodes that can be linked to horizontally and vertically
@@ -56,11 +59,15 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 		if IsPath(im, x, 0) {
 			m.Start.X = x
 			vertNodes[x] = m.Start
-			m.NodeGrid[x][0] = m.Start
+			if BuildDotGraph {
+				m.NodeGrid[x][0] = m.Start
+			}
 		}
 		if IsPath(im, x, height-1) {
 			m.End.X = x
-			m.NodeGrid[x][height-1] = m.End
+			if BuildDotGraph {
+				m.NodeGrid[x][height-1] = m.End
+			}
 		}
 	}
 	log.Printf("Start: %s, End: %s", m.Start, m.End)
@@ -78,9 +85,9 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 			}
 
 			// Check if the current point is a node in the graph
-			u, r, d, l, count := p.Neighbors(im)
+			neighbors, count := p.Neighbors(im)
 			//log.Printf("%s: %t %t %t %t", p, u, r, d, l)
-			if (!u && !d && r && l) || (u && d && !r && !l) {
+			if neighbors == N_UP+N_DOWN || neighbors == N_RIGHT+N_LEFT {
 				//log.Printf("Not graph node: %s", p)
 				continue
 			}
@@ -88,14 +95,18 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 			log.Printf("Graph node: %s", p)
 			n := NewNode(count)
 			n.Point = p
-			m.NodeGrid[p.X][p.Y] = n
+			if BuildDotGraph {
+				m.NodeGrid[p.X][p.Y] = n
+			}
 
 			// Add horizontal link to the left to the previous Node on the row
 			if horiNodes[p.Y] != nil {
 				l := NewLink(horiNodes[p.Y], n)
 				horiNodes[p.Y].Links = append(horiNodes[p.Y].Links, l)
 				n.Links = append(n.Links, l)
-				m.Links = append(m.Links, l)
+				if BuildDotGraph {
+					m.Links = append(m.Links, l)
+				}
 			}
 			horiNodes[p.Y] = n
 
@@ -104,7 +115,9 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 				l := NewLink(vertNodes[p.X], n)
 				vertNodes[p.X].Links = append(vertNodes[p.X].Links, l)
 				n.Links = append(n.Links, l)
-				m.Links = append(m.Links, l)
+				if BuildDotGraph {
+					m.Links = append(m.Links, l)
+				}
 			}
 			vertNodes[p.X] = n
 		}
@@ -117,12 +130,19 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 	l := NewLink(vertNodes[m.End.X], m.End)
 	vertNodes[m.End.X].Links = append(vertNodes[m.End.X].Links, l)
 	m.End.Links = append(m.End.Links, l)
-	m.Links = append(m.Links, l)
+	if BuildDotGraph {
+		m.Links = append(m.Links, l)
+	}
 
 	return
 }
 
 func (m *Maze) ToDotFile(f io.Writer) (err error) {
+	if !BuildDotGraph {
+		err = errors.New("Cannot generate dot graph if BuildBotGraph is not set to true")
+		return
+	}
+
 	dot := `digraph G {
 	center=1
 	rank=same

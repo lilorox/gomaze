@@ -28,7 +28,8 @@ func main() {
 		log.Fatal("Could not load maze from image")
 	}
 
-	if dotVar != nil {
+	if dotVar != nil && *dotVar != "" {
+		maze.BuildDotGraph = true
 		dot, err := os.OpenFile(*dotVar, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			log.Fatalf("Cannot open dot file %s with write access", *dotVar)
