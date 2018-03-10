@@ -40,3 +40,23 @@ func (p Point) Neighbors(im image.Image) (neighbors uint8, count int) {
 	}
 	return
 }
+
+func (p Point) DistanceTo(other Point) (d int) {
+	if p.X == other.X {
+		if p.Y > other.Y {
+			d = p.Y - other.Y
+		} else {
+			d = other.Y - p.Y
+		}
+	} else if p.Y == other.Y {
+		if p.X > other.X {
+			d = p.X - other.X
+		} else {
+			d = other.X - p.X
+		}
+	} else {
+		panic("There cannot be a link between Nodes that are not horizontally or vertically aligned")
+	}
+
+	return
+}

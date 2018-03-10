@@ -2,32 +2,26 @@ package maze
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	_ "image/png"
 	"io"
 	"log"
 )
 
-var BuildDotGraph = false
-
 type Maze struct {
 	Start, End *Node
 	Size       image.Rectangle
 
-	NodeGrid [][]*Node
-	Links    []*NodeLink
+	Nodes []*Node
 }
 
-func NewMaze() *Maze {
-	m := &Maze{
-		Start: NewNode(1),
-		End:   NewNode(1),
+func NewMaze() (m *Maze) {
+	m = &Maze{
+		Start: &Node{Name: "start"},
+		End:   &Node{Name: "end"},
 	}
-	m.Start.Name = "start"
-	m.End.Name = "end"
 
-	return m
+	return
 }
 
 func (m *Maze) LoadFromImage(f io.Reader) (err error) {
@@ -41,14 +35,6 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 	height := m.Size.Max.Y
 	log.Printf("Width: %d, Height: %d", width, height)
 
-	// Initialize the node grid for the dot graph if needed
-	if BuildDotGraph {
-		m.NodeGrid = make([][]*Node, width)
-		for i := 0; i < width; i++ {
-			m.NodeGrid[i] = make([]*Node, height)
-		}
-	}
-
 	// Maintains a list of Nodes that can be linked to horizontally and vertically
 	horiNodes := make([]*Node, width)
 	vertNodes := make([]*Node, width)
@@ -59,15 +45,13 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 		if IsPath(im, x, 0) {
 			m.Start.X = x
 			vertNodes[x] = m.Start
-			if BuildDotGraph {
-				m.NodeGrid[x][0] = m.Start
-			}
+
+			m.Nodes = append(m.Nodes, m.Start)
 		}
 		if IsPath(im, x, height-1) {
 			m.End.X = x
-			if BuildDotGraph {
-				m.NodeGrid[x][height-1] = m.End
-			}
+
+			m.Nodes = append(m.Nodes, m.End)
 		}
 	}
 	log.Printf("Start: %s, End: %s", m.Start, m.End)
@@ -84,40 +68,32 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 				continue
 			}
 
-			// Check if the current point is a node in the graph
-			neighbors, count := p.Neighbors(im)
-			//log.Printf("%s: %t %t %t %t", p, u, r, d, l)
+			// Check if the current point is a node in the graph: if it has
+			// only neighbors on up+down or left+right, it is not a node;
+			// otherwise it's a corner or a T and is part of the graph
+			neighbors, _ := p.Neighbors(im)
 			if neighbors == N_UP+N_DOWN || neighbors == N_RIGHT+N_LEFT {
-				//log.Printf("Not graph node: %s", p)
 				continue
 			}
 
 			log.Printf("Graph node: %s", p)
-			n := NewNode(count)
+			n := &Node{}
 			n.Point = p
-			if BuildDotGraph {
-				m.NodeGrid[p.X][p.Y] = n
-			}
+			m.Nodes = append(m.Nodes, n)
 
 			// Add horizontal link to the left to the previous Node on the row
 			if horiNodes[p.Y] != nil {
-				l := NewLink(horiNodes[p.Y], n)
-				horiNodes[p.Y].Links = append(horiNodes[p.Y].Links, l)
-				n.Links = append(n.Links, l)
-				if BuildDotGraph {
-					m.Links = append(m.Links, l)
-				}
+				log.Printf("%s has %s on the left", n, horiNodes[p.Y])
+				n.Neighbors[1] = horiNodes[p.Y]
+				horiNodes[p.Y].Neighbors[3] = n
 			}
 			horiNodes[p.Y] = n
 
 			// Add vertical link upward to the previous Node on the column
 			if vertNodes[p.X] != nil {
-				l := NewLink(vertNodes[p.X], n)
-				vertNodes[p.X].Links = append(vertNodes[p.X].Links, l)
-				n.Links = append(n.Links, l)
-				if BuildDotGraph {
-					m.Links = append(m.Links, l)
-				}
+				log.Printf("%s has %s above", n, vertNodes[p.X])
+				n.Neighbors[2] = vertNodes[p.X]
+				vertNodes[p.X].Neighbors[0] = n
 			}
 			vertNodes[p.X] = n
 		}
@@ -127,59 +103,9 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 	if vertNodes[m.End.X] == nil {
 		return errors.New("The end of the maze is not connected to the rest")
 	}
-	l := NewLink(vertNodes[m.End.X], m.End)
-	vertNodes[m.End.X].Links = append(vertNodes[m.End.X].Links, l)
-	m.End.Links = append(m.End.Links, l)
-	if BuildDotGraph {
-		m.Links = append(m.Links, l)
-	}
 
-	return
-}
+	m.End.Neighbors[0] = vertNodes[m.End.X]
+	vertNodes[m.End.X].Neighbors[2] = m.End
 
-func (m *Maze) ToDotFile(f io.Writer) (err error) {
-	if !BuildDotGraph {
-		err = errors.New("Cannot generate dot graph if BuildBotGraph is not set to true")
-		return
-	}
-
-	dot := `digraph G {
-	center=1
-	rank=same
-	rankdir=LR
-	ration=auto
-	splines=line
-	edge [dir=none]
-`
-
-	// Add node in clusters
-	for i := range m.NodeGrid[0] {
-		subgraph := fmt.Sprintf("\tsubgraph cluster_%d {\n\t\tstyle=invis\n", i)
-		for j := range m.NodeGrid {
-			n := m.NodeGrid[j][i]
-			if n != nil {
-				subgraph += fmt.Sprintf(
-					"\t\t\"%s\" [pos=\"%d,%d!\"];\n",
-					n,
-					n.Point.X,
-					m.Size.Max.Y-n.Point.Y,
-				)
-			}
-		}
-		dot += subgraph + "\t}\n"
-	}
-
-	// Add links globally
-	for i := range m.Links {
-		dot += fmt.Sprintf(
-			"\t\"%s\" -> \"%s\" [label=\"%d\"]\n",
-			m.Links[i].Nodes[0],
-			m.Links[i].Nodes[1],
-			m.Links[i].Distance,
-		)
-	}
-
-	dot += "}"
-	_, err = f.Write([]byte(dot))
 	return
 }

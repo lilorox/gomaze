@@ -29,15 +29,16 @@ func main() {
 	}
 
 	if dotVar != nil && *dotVar != "" {
-		maze.BuildDotGraph = true
-		dot, err := os.OpenFile(*dotVar, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		dotFile, err := os.OpenFile(*dotVar, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			log.Fatalf("Cannot open dot file %s with write access", *dotVar)
 		}
 
-		if err := m.ToDotFile(dot); err != nil {
+		d := maze.NewDotGraph(m)
+
+		if err := d.Save(dotFile); err != nil {
 			log.Fatal(err.Error())
 		}
-		f.Close()
+		dotFile.Close()
 	}
 }
