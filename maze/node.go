@@ -3,7 +3,7 @@ package maze
 type Node struct {
 	Point
 
-	Name      string
+	Visited   bool
 	Neighbors [4]*Node // up, right, down, left
 }
 
@@ -17,8 +17,5 @@ func (n *Node) NeighborsCount() (c uint8) {
 }
 
 func (n *Node) String() string {
-	if n.Name != "" {
-		return n.Name
-	}
 	return n.Point.String()
 }

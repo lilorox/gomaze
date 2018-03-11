@@ -17,8 +17,8 @@ type Maze struct {
 
 func NewMaze() (m *Maze) {
 	m = &Maze{
-		Start: &Node{Name: "start"},
-		End:   &Node{Name: "end"},
+		Start: &Node{},
+		End:   &Node{},
 	}
 
 	return
