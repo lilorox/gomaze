@@ -57,45 +57,43 @@ func (m *Maze) LoadFromImage(f io.Reader) (err error) {
 	log.Printf("Start: %s, End: %s", m.Start, m.End)
 
 	// Build maze graph line by line
-	p := Point{}
-	for p.Y = 1; p.Y < height-1; p.Y++ {
-		for p.X = 1; p.X < width-1; p.X++ {
+	for y := 1; y < height-1; y++ {
+		for x := 1; x < width-1; x++ {
 			// If the current tile of the maze is a wall, remove the possible
 			// horiNode and vertNode connections and move on
-			if !IsPath(im, p.X, p.Y) {
-				vertNodes[p.X] = nil
-				horiNodes[p.Y] = nil
+			if !IsPath(im, x, y) {
+				vertNodes[x] = nil
+				horiNodes[y] = nil
 				continue
 			}
 
 			// Check if the current point is a node in the graph: if it has
 			// only neighbors on up+down or left+right, it is not a node;
 			// otherwise it's a corner or a T and is part of the graph
-			neighbors, _ := p.Neighbors(im)
+			neighbors, _ := Neighbors(im, x, y)
 			if neighbors == N_UP+N_DOWN || neighbors == N_RIGHT+N_LEFT {
 				continue
 			}
 
-			log.Printf("Graph node: %s", p)
-			n := &Node{}
-			n.Point = p
+			n := &Node{X: x, Y: y}
 			m.Nodes = append(m.Nodes, n)
+			log.Printf("New node: %s", n)
 
 			// Add horizontal link to the left to the previous Node on the row
-			if horiNodes[p.Y] != nil {
-				log.Printf("%s has %s on the left", n, horiNodes[p.Y])
-				n.Neighbors[1] = horiNodes[p.Y]
-				horiNodes[p.Y].Neighbors[3] = n
+			if horiNodes[y] != nil {
+				log.Printf("%s has %s on the left", n, horiNodes[y])
+				n.Neighbors[1] = horiNodes[y]
+				horiNodes[y].Neighbors[3] = n
 			}
-			horiNodes[p.Y] = n
+			horiNodes[y] = n
 
 			// Add vertical link upward to the previous Node on the column
-			if vertNodes[p.X] != nil {
-				log.Printf("%s has %s above", n, vertNodes[p.X])
-				n.Neighbors[2] = vertNodes[p.X]
-				vertNodes[p.X].Neighbors[0] = n
+			if vertNodes[x] != nil {
+				log.Printf("%s has %s above", n, vertNodes[x])
+				n.Neighbors[2] = vertNodes[x]
+				vertNodes[x].Neighbors[0] = n
 			}
-			vertNodes[p.X] = n
+			vertNodes[x] = n
 		}
 	}
 

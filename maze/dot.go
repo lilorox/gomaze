@@ -25,7 +25,7 @@ func NewDotGraph(m *Maze) (d *DotGraph) {
 
 	for i := range m.Nodes {
 		n := m.Nodes[i]
-		d.NodeGrid[n.Point.X][n.Point.Y] = n
+		d.NodeGrid[n.X][n.Y] = n
 		// Only add edges from right and down neighbors to avoid duplicates
 		for _, j := range []int{1, 2} {
 			if n.Neighbors[j] != nil {
@@ -57,8 +57,8 @@ func (d *DotGraph) Save(f io.Writer) (err error) {
 				subgraph += fmt.Sprintf(
 					"\t\t\"%s\" [pos=\"%d,%d!\"];\n",
 					n,
-					n.Point.X,
-					d.Maze.Size.Max.Y-n.Point.Y,
+					n.X,
+					d.Maze.Size.Max.Y-n.Y,
 				)
 			}
 		}
@@ -71,7 +71,7 @@ func (d *DotGraph) Save(f io.Writer) (err error) {
 			"\t\"%s\" -> \"%s\" [label=\"%d\"]\n",
 			d.Edges[i][0],
 			d.Edges[i][1],
-			d.Edges[i][0].Point.DistanceTo(d.Edges[i][1].Point),
+			d.Edges[i][0].DistanceTo(d.Edges[i][1]),
 		)
 	}
 
