@@ -1,41 +1,33 @@
 package maze
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type Node struct {
-	X, Y int
-
-	Visited   bool
+	X, Y      int
 	Neighbors [4]*Node // up, right, down, left
 }
 
-func (n *Node) NeighborsCount() (c uint8) {
-	for i := 0; i < 4; i++ {
-		if n.Neighbors[i] != nil {
-			c++
-		}
-	}
-	return
-}
-
-func (n *Node) DistanceTo(other *Node) (d int) {
-	if n.X == other.X {
+func (n *Node) DistanceTo(other *Node) float64 {
+	dX := float64(other.X - n.X)
+	if dX == 0 {
 		if n.Y > other.Y {
-			d = n.Y - other.Y
-		} else {
-			d = other.Y - n.Y
+			return float64(n.Y - other.Y)
 		}
-	} else if n.Y == other.Y {
-		if n.X > other.X {
-			d = n.X - other.X
-		} else {
-			d = other.X - n.X
-		}
-	} else {
-		panic("There cannot be a link between Nodes that are not horizontally or vertically aligned")
+		return float64(other.Y - n.Y)
 	}
 
-	return
+	dY := float64(other.Y - n.Y)
+	if dY == 0 {
+		if n.X > other.X {
+			return float64(n.X - other.X)
+		}
+		return float64(other.X - n.X)
+	}
+
+	return math.Sqrt(dX*dX + dY*dY)
 }
 
 func (n *Node) String() string {

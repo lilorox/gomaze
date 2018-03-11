@@ -68,7 +68,7 @@ func (d *DotGraph) Save(f io.Writer) (err error) {
 	// Add links globally
 	for i := range d.Edges {
 		dot += fmt.Sprintf(
-			"\t\"%s\" -> \"%s\" [label=\"%d\"]\n",
+			"\t\"%s\" -> \"%s\" [label=\"%.1f\"]\n",
 			d.Edges[i][0],
 			d.Edges[i][1],
 			d.Edges[i][0].DistanceTo(d.Edges[i][1]),
